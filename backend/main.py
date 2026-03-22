@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 from github_service import get_user
 from utils import build_repo_text
 from recommender import recommend_repos
@@ -16,12 +17,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class UserRequest(BaseModel):
+    username: str
+
 @app.get("/")
 def home():
     return {"message": "GitHub Repo Recommender is running"}
 
 @app.post("/recommend")
-def recommend(username:str):
+def recommend(request: UserRequest):
+    username = request.username
     user_repos = get_user(username)
     if not user_repos:
         return {"error": "User not found or no public repos."}
