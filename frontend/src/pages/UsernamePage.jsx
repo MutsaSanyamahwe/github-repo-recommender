@@ -18,13 +18,13 @@ function UsernamePage() {
 
         try {
             const response = await fetch(
-                `https://github-repo-recommender.onrender.com/recommend?username=${username}`,
+                "https://github-repo-recommender.onrender.com/recommend",
                 {
                      method: "POST",
                      headers: {
                         "Content-Type": "application/json",
                      },
-                     body: JSON.stringify({ username }), // send username in JSON body
+                     body: JSON.stringify({ username }), // sending username in JSON body
                 }
             );
 
