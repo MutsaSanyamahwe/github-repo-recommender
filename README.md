@@ -28,7 +28,7 @@ Check it out here: [GitHub Repo Recommender Live](https://github-repository-reco
 
 - **Backend:** FastAPI, Python, Pydantic, Requests,**scikit-learn (K-means clustering)**
 - **Frontend:** React, Tailwind CSS, Vite
-- **Deployment:** Render
+- **Deployment:** Docker, Render
 
 ##  Getting Started (Local Development)
 
