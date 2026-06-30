@@ -1,36 +1,49 @@
 # GitHub Repo Recommender
 
-A simple web app that recommends GitHub repositories based on your profile. Enter your GitHub username and get personalized repository suggestions using machine learning on your public repos.
+A simple web app that recommends GitHub repositories based on your profile. Enter your GitHub username and get repository suggestions pulled from a pre-clustered corpus of public repos that match the topics, languages, and descriptions of what you've built.
 
 ## Live Demo
-- Fully functional **live app**: no local setup required to try recommendations
 
-Check it out here: [GitHub Repo Recommender Live](https://github-repository-recommender.onrender.com)
+Fully functional live app — no local setup required to try it.
 
-##  Features
+Check it out here: [GitHub Repo Recommender Live](https://github-repository-recommender.onrender.com/)
 
-- Fetch GitHub repositories for a user
-- Analyze repository topics, descriptions, and content
-- Recommend the top 5 repositories most relevant to the user
-- Uses **K-means clustering** to group similar repositories and generate recommendations
-- Fully deployed backend with FastAPI and hosted on Render
+## Features
+
+- Fetch a GitHub user's public repositories
+- Build text features from each repo's name, description, language, and topics
+- Vectorize that text with a pre-trained TF-IDF vectorizer
+- Assign the user's repos to clusters from a pre-trained K-means model
+- Recommend the top 5 repositories from a pre-built corpus that fall in the same clusters
+- Fully deployed backend with FastAPI, hosted on Render
 - Frontend built with React + Tailwind CSS
 
 ## How It Works
 
-1. Fetch all public repositories for a given GitHub username.
-2. Extract textual features from repo descriptions, topics, and readme content.
-3. Use TF-IDF to vectorize the text.
-4. Apply **K-means clustering** to group similar repositories.
-5. Recommend the top 5 repositories closest to the user’s clusters.
+The clustering model isn't trained live — it's trained offline once and shipped with the backend as pickled artifacts (`vectorizer.pkl`, `kmeans.pkl`, `repos.pkl`).
 
-##  Tech Stack
+**Offline (one-time, via `train_model.ipynb`):**
+1. Search GitHub for repositories across a fixed set of languages (Python, JavaScript, Java, Go, Rust)
+2. Build a text feature from each repo's name, description, language, and topics
+3. Fit a TF-IDF vectorizer and a K-means model on that corpus
+4. Save the fitted vectorizer, the fitted K-means model, and the corpus itself to disk
 
-- **Backend:** FastAPI, Python, Pydantic, Requests,**scikit-learn (K-means clustering)**
+**At request time:**
+1. Fetch the requested GitHub username's public repositories
+2. Build the same text feature (name + description + language + topics) for each of their repos
+3. Transform that text with the pre-trained TF-IDF vectorizer
+4. Predict which existing cluster(s) the user's repos fall into using the pre-trained K-means model
+5. Pull repositories from those same clusters out of the pre-built corpus, dedupe, and return the top 5
+
+In short: the user's repos aren't clustered against each other — they're used to find which pre-existing cluster of other developers' repos best matches their style, and recommendations come from that cluster.
+
+## Tech Stack
+
+- **Backend:** FastAPI, Python, Pydantic, Requests, scikit-learn (TF-IDF + K-means)
 - **Frontend:** React, Tailwind CSS, Vite
 - **Deployment:** Docker, Render
 
-##  Getting Started (Local Development)
+## Getting Started (Local Development)
 
 ### Backend
 
@@ -49,6 +62,9 @@ pip install -r requirements.txt
 # Run backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+The backend loads `vectorizer.pkl`, `kmeans.pkl`, and `repos.pkl` from the `backend/` directory at startup — no training step is needed to run the API, those artifacts are already included in the repo.
+
 ### Frontend
 
 ```bash
@@ -57,8 +73,34 @@ npm install
 npm run dev
 ```
 
-##  License
+## Retraining the Model
 
-This project is licensed under the MIT License.  
-See the [LICENSE](./LICENSE) file for details.
+To rebuild the corpus and retrain the clustering model with a different set of languages or a larger sample, open `backend/train_model.ipynb` and run it end to end. It will regenerate `vectorizer.pkl`, `kmeans.pkl`, and `repos.pkl` in place.
+
+## Project Structure
+
+```
+github-repo-recommender/
+├── backend/
+│   ├── main.py              # FastAPI app, POST /recommend
+│   ├── github_service.py    # Fetches a user's public repos from the GitHub API
+│   ├── recommender.py       # Loads pickled models, predicts cluster, returns top 5
+│   ├── utils.py             # Builds the text feature fed into TF-IDF
+│   ├── train_model.ipynb    # Offline corpus collection + model training
+│   ├── vectorizer.pkl       # Pre-trained TF-IDF vectorizer
+│   ├── kmeans.pkl           # Pre-trained K-means model
+│   ├── repos.pkl            # Pre-built corpus of repos used for recommendations
+│   ├── requirements.txt
+│   └── Dockerfile
+└── frontend/
+    └── src/
+        ├── pages/
+        └── components/
+```
+
+## License
+
+No license file is currently included in this repository.
+
+Repo: [github.com/MutsaSanyamahwe/github-repo-recommender](https://github.com/MutsaSanyamahwe/github-repo-recommender)
 
