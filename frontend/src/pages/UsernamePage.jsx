@@ -18,7 +18,7 @@ function UsernamePage() {
 
         try {
             const response = await fetch(
-                "https://github-repo-recommender.onrender.com/recommend",
+                "https://github-repo-recommender-production.up.railway.app/recommend",
                 {
                      method: "POST",
                      headers: {
