@@ -11,36 +11,66 @@ function UsernamePage() {
 
 
 
+    const BACKEND_URL = "https://github-repo-recommender-production.up.railway.app/recommend";
+
     const handleSearch = async () => {
+        const trimmedUsername = username.trim();
+
+        if (!trimmedUsername) {
+            setError("Please enter a GitHub username.");
+            return;
+        }
 
         setLoading(true);
         setError(null);
 
         try {
-            const response = await fetch(
-                "https://github-repo-recommender-production.up.railway.app/recommend",
-                {
-                     method: "POST",
-                     headers: {
-                        "Content-Type": "application/json",
-                     },
-                     body: JSON.stringify({ username }), // sending username in JSON body
-                }
-            );
+            // Check the username exists on GitHub first, so we can give a fast,
+            // clear message instead of a confusing failure from our own backend.
+            const ghCheck = await fetch(`https://api.github.com/users/${encodeURIComponent(trimmedUsername)}`);
 
-            const data = await response.json();
+            if (ghCheck.status === 404) {
+                throw new Error(`GitHub user "${trimmedUsername}" does not exist.`);
+            }
+            if (!ghCheck.ok) {
+                // e.g. GitHub API rate limit (403) or a transient GitHub outage
+                throw new Error("Couldn't verify that username with GitHub right now. Please try again shortly.");
+            }
+
+            const response = await fetch(BACKEND_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ username: trimmedUsername }),
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch {
+                throw new Error("The server returned an unexpected response. Please try again.");
+            }
 
             if (!response.ok) {
                 throw new Error(data.error || "Something went wrong");
+            }
+
+            if (!data.recommended_repos || data.recommended_repos.length === 0) {
+                throw new Error("No recommendations found for that user.");
             }
 
             navigate("/RepoPage", {
                 state: { repos: data.recommended_repos }
             });
 
-
         } catch (err) {
-            setError(err.message);
+            if (err instanceof TypeError) {
+                // fetch() throws a generic TypeError on network failure / CORS / DNS issues
+                setError("Couldn't reach the recommendation service. It may be down or unreachable right now.");
+            } else {
+                setError(err.message);
+            }
 
         } finally {
             setLoading(false);
@@ -85,6 +115,12 @@ function UsernamePage() {
                         {loading ? "Loading..." : "Search"}
                     </button>
                 </div>
+
+                {error && (
+                    <p className="mt-4 text-red-600 font-medium">
+                        {error}
+                    </p>
+                )}
             </div>
 
         </div>
