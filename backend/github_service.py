@@ -1,6 +1,13 @@
 import requests
+from time import sleep
 
 GITHUB_API_URL = "https://api.github.com"
+
+
+class GitHubUserNotFound(Exception):
+    """Raised when the GitHub username does not exist."""
+    pass
+
 
 def get_user(username: str, retries: int = 3):
     url = f"{GITHUB_API_URL}/users/{username}/repos"
@@ -9,9 +16,16 @@ def get_user(username: str, retries: int = 3):
         "User-Agent": "github-recommender-app"
     }
 
+    last_error = None
+
     for attempt in range(1, retries + 1):
         try:
             response = requests.get(url, headers=headers, timeout=10)
+
+            # A 404 means the username doesn't exist - no point retrying.
+            if response.status_code == 404:
+                raise GitHubUserNotFound(f"GitHub user '{username}' not found")
+
             response.raise_for_status()
             repos = response.json()
 
@@ -26,10 +40,16 @@ def get_user(username: str, retries: int = 3):
                 })
             return result
 
+        except GitHubUserNotFound:
+            # Don't retry - re-raise immediately so the caller can show a clear message.
+            raise
+
         except requests.exceptions.RequestException as e:
             print(f"Attempt {attempt} failed: {e}")
-            sleep(2)  # adding a small delay before retry
+            last_error = e
+            if attempt < retries:
+                sleep(2)  # small delay before retry
 
-    # If all attempts fail, return empty list
+    # If all attempts fail (rate limit, timeout, network issue, etc.)
+    print(f"All {retries} attempts failed. Last error: {last_error}")
     return []
-
